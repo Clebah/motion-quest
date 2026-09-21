@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Motion Quest — A Relíquia Estelar de Cleber</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: #090d16;
+      color: #f8fafc;
+      font-family: system-ui, -apple-system, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .header {
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    .header h1 {
+      font-size: 24px;
+      color: #38bdf8;
+      margin-bottom: 6px;
+    }
+    .header p {
+      font-size: 14px;
+      color: #94a3b8;
+    }
+    /* 9:16 Vertical Video Frame */
+    .video-frame {
+      width: 360px;
+      height: 640px;
+      background: #000;
+      border-radius: 28px;
+      overflow: hidden;
+      position: relative;
+      box-shadow: 0 25px 60px rgba(0, 0, 0, 0.8), 0 0 0 2px rgba(255, 255, 255, 0.1);
+      display: flex;
+      flex-direction: column;
+    }
+    .scene-canvas {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      background: linear-gradient(180deg, #1e293b 0%, #0f172a 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: opacity 0.5s ease;
+    }
+    .scene-canvas img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 5s linear;
+    }
+    .zoom-in {
+      transform: scale(1.08);
+    }
+    .vignette {
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(180deg, rgba(0,0,0,0.6) 0%, rgba(0,0,0,0) 30%, rgba(0,0,0,0.4) 65%, rgba(0,0,0,0.92) 100%);
+      pointer-events: none;
+    }
+    .top-bar {
+      position: absolute;
+      top: 24px;
+      left: 16px;
+      right: 16px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+    }
+    .badge {
+      background: rgba(15, 23, 42, 0.8);
+      backdrop-filter: blur(12px);
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+    .char-badge {
+      background: rgba(15, 23, 42, 0.8);
+      color: #38bdf8;
+      border-color: rgba(56, 189, 248, 0.3);
+    }
+    .subtitle-box {
+      position: absolute;
+      bottom: 30px;
+      left: 16px;
+      right: 16px;
+      background: rgba(10, 15, 29, 0.88);
+      backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 18px;
+      padding: 16px 20px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+      z-index: 10;
+    }
+    .subtitle-text {
+      font-size: 15px;
+      line-height: 1.4;
+      font-weight: 600;
+      text-align: center;
+      color: #ffffff;
+    }
+    .controls {
+      display: flex;
+      gap: 12px;
+      margin-top: 16px;
+      align-items: center;
+    }
+    button {
+      background: #38bdf8;
+      color: #0f172a;
+      border: none;
+      padding: 10px 20px;
+      border-radius: 20px;
+      font-size: 14px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover { background: #7dd3fc; }
+    .progress-bar-container {
+      width: 360px;
+      height: 6px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 3px;
+      margin-top: 12px;
+      overflow: hidden;
+    }
+    .progress-bar {
+      height: 100%;
+      background: #38bdf8;
+      width: 0%;
+      transition: width 0.1s linear;
+    }
+    .prompt-preview {
+      width: 360px;
+      margin-top: 12px;
+      background: rgba(255,255,255,0.05);
+      padding: 12px;
+      border-radius: 12px;
+      font-size: 12px;
+      color: #94a3b8;
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>🎬 A Relíquia Estelar de Cleber</h1>
+    <p>20 cenas • 100s • Resolução 1080x1920 (9:16)</p>
+  </div>
+
+  <div class="video-frame">
+    <div class="vignette"></div>
+    <div class="top-bar">
+      <span class="badge" id="sceneBadge">Cena 1 / 20</span>
+      <span class="badge char-badge" id="charBadge">👤 Cleber</span>
+    </div>
+    <div class="scene-canvas" id="sceneCanvas">
+      <div style="text-align: center; padding: 20px;" id="canvasContent">
+        <h3 id="scenePromptText" style="font-size: 16px; color: #38bdf8; margin-bottom: 8px;">Carregando Cena...</h3>
+      </div>
+    </div>
+    <div class="subtitle-box">
+      <p class="subtitle-text" id="subtitleText">Iniciando exibição do roteiro...</p>
+    </div>
+  </div>
+
+  <div class="progress-bar-container">
+    <div class="progress-bar" id="progressBar"></div>
+  </div>
+
+  <div class="controls">
+    <button onclick="prevScene()">⏮️ Anterior</button>
+    <button onclick="togglePlay()" id="playBtn">⏸️ Pausar</button>
+    <button onclick="nextScene()">⏭️ Próxima</button>
+  </div>
+
+  <div class="prompt-preview">
+    <strong>Prompt Visual da Cena:</strong>
+    <p id="promptDetailText" style="margin-top: 4px;"></p>
+  </div>
+
+  <script>
+    const scenes = [{"sceneNumber":1,"durationSeconds":5,"characterIds":["char_cc396efd"],"visualPrompt":"Animated style. Close-up em Cleber (45 anos, cabelos curtos, expressão alegre e confiante), sentado em sua estação espacial futurista. Ele veste uma camiseta com um emblema sutilmente inspirado em futebol e um óculos de estilo 'Nerd', trabalhando animadamente em telas holográficas que exibem códigos e gráficos estelares. Há uma cuia de chimarrão ao lado de seu console. Câmera lenta, panning para mostrar um pouco do ambiente high-tech e acolhedor.","narrationText":"Cleber, um explorador espacial com alma gaúcha e mente brilhante, vivia entre códigos e estrelas.","imagePath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/scenes/scene_01.png","clipPath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/clips/scene_01.mp4","status":"completed"},{"sceneNumber":2,"durationSeconds":5,"characterIds":["char_cc396efd"],"visualPrompt":"Animated style. A tela principal de Cleber (ainda em close-up) pisca em vermelho e um alerta sonoro preenche a ponte. Uma onda de energia cósmica, visualizada como um padrão complexo de luz e som, emana da tela. A expressão de Cleber muda de concentração para surpresa e curiosidade intensa. Câmera lenta no alerta.","narrationText":"Um dia, uma transmissão misteriosa quebrou a rotina, vinda dos confins da galáxia.","imagePath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/scenes/scene_02.png","clipPath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/clips/scene_02.mp4","status":"completed"},{"sceneNumber":3,"durationSeconds":5,"characterIds":["char_cc396efd"],"visualPrompt":"Animated style. Close-up no rosto de Cleber, iluminado pelo brilho azul da tela. Ele inclina a cabeça, franzindo a testa em concentração, seus dedos digitando rapidamente em um teclado holográfico enquanto ele analisa os dados da transmissão. Um sorriso confiante e determinado surge em seu rosto. Câmera lenta no processamento dos dados.","narrationText":"Sinais enigmáticos chamavam por ele, uma aventura além do conhecido.","imagePath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/scenes/scene_03.png","clipPath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/clips/scene_03.mp4","status":"completed"},{"sceneNumber":4,"durationSeconds":5,"characterIds":["char_cc396efd"],"visualPrompt":"Animated style. Cleber, agora vestido com um traje espacial moderno que incorpora elementos de sua jaqueta azul e óculos, está de pé na câmara de embarque de sua nave. Ele verifica os sistemas em um pulso-tablet, com uma expressão de entusiasmo e prontidão. O ambiente é limpo e funcional. Câmera de baixo para cima, mostrando sua postura heroica.","narrationText":"Com sua coragem habitual e um senso de dever, Cleber aceitou o chamado.","imagePath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/scenes/scene_04.png","clipPath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/clips/scene_04.mp4","status":"completed"},{"sceneNumber":5,"durationSeconds":5,"characterIds":["char_cc396efd"],"visualPrompt":"Animated style. A nave estelar de Cleber, 'Viajante Sideral' (design elegante, mas robusto, com toques de modernidade), decola suavemente de uma plataforma em sua estação espacial. A câmera acompanha a nave enquanto ela acelera para o espaço profundo, deixando para trás a estação e as estrelas ao fundo. Vista de fora da nave.","narrationText":"Sua nave, a 'Viajante Sideral', o aguardava para a jornada.","imagePath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/scenes/scene_05.png","clipPath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/clips/scene_05.mp4","status":"completed"},{"sceneNumber":6,"durationSeconds":5,"characterIds":["char_cc396efd"],"visualPrompt":"Animated style. A nave de Cleber atravessa uma nebulosa deslumbrante, repleta de cores vibrantes – tons de roxo, azul-turquesa e rosa fluindo como nuvens cósmicas. Pequenos raios de energia estelar dançam ao redor da nave. Vista panorâmica da nave imersa na beleza da nebulosa. Câmera lenta, com um brilho suave.","narrationText":"Atravessando véus de gás e poeira estelar, a nave de Cleber avançava.","imagePath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/scenes/scene_06.png","clipPath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/clips/scene_06.mp4","status":"completed"},{"sceneNumber":7,"durationSeconds":5,"characterIds":["char_cc396efd"],"visualPrompt":"Animated style. Cleber na ponte de comando de sua nave, mãos firmes nos controles holográficos, olhando fixamente para a vasta janela frontal que exibe a nebulosa. Sua expressão é de intensa concentração, mas também de admiração pela beleza do espaço. Luzes suaves da cabine refletem em seus óculos. Câmera angular, mostrando o vasto espaço à frente.","narrationText":"Cada estrela guiava seu caminho, cada desafio fortalecia seu espírito.","imagePath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/scenes/scene_07.png","clipPath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/clips/scene_07.mp4","status":"completed"},{"sceneNumber":8,"durationSeconds":5,"characterIds":["char_cc396efd"],"visualPrompt":"Animated style. A nave de Cleber emerge da nebulosa e se aproxima de um planeta totalmente coberto por formações cristalinas gigantes, que brilham com luzes iridescentes ao refletir as estrelas distantes. O planeta tem uma aura misteriosa e etérea. Câmera lenta, aproximando-se do planeta cristalino.","narrationText":"Até que um mundo de cristais, nunca antes visto, surgiu no horizonte.","imagePath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/scenes/scene_08.png","clipPath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/clips/scene_08.mp4","status":"completed"},{"sceneNumber":9,"durationSeconds":5,"characterIds":["char_cc396efd"],"visualPrompt":"Animated style. A nave de Cleber faz um pouso suave em uma clareira natural no planeta cristalino. O chão é feito de cristais polidos que refletem a luz do céu. Pequenas criaturas luminosas podem ser vistas voando ao longe. Vista de fora, mostrando a nave pousando graciosamente.","narrationText":"Com maestria, Cleber aterrissou, pronto para o desconhecido.","imagePath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/scenes/scene_09.png","clipPath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/clips/scene_09.mp4","status":"completed"},{"sceneNumber":10,"durationSeconds":5,"characterIds":["char_cc396efd"],"visualPrompt":"Animated style. Cleber, em seu traje espacial, caminha pela superfície do planeta cristalino, seus passos ecoando suavemente. Ele olha ao redor com os olhos arregalados, maravilhado com as formações cristalinas que se elevam como arranha-céus naturais, refletindo e refratando a luz em um espetáculo de cores. Câmera seguindo Cleber, com um slow pan.","narrationText":"A superfície cintilante revelava segredos, ecos de uma civilização antiga.","imagePath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/scenes/scene_10.png","clipPath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/clips/scene_10.mp4","status":"completed"},{"sceneNumber":11,"durationSeconds":5,"characterIds":["char_cc396efd"],"visualPrompt":"Animated style. Cleber para abruptamente ao avistar uma relíquia ancestral. Ela é uma estrutura geométrica complexa feita de um material desconhecido, flutuando a poucos metros do chão, pulsando com uma luz interna suave e etérea. O brilho da relíquia ilumina o rosto de Cleber com admiração. Câmera focada na relíquia, depois em Cleber.","narrationText":"Então, ele a viu: uma relíquia ancestral, suspensa no ar, emanando sabedoria.","imagePath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/scenes/scene_11.png","clipPath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/clips/scene_11.mp4","status":"completed"},{"sceneNumber":12,"durationSeconds":5,"characterIds":["char_cc396efd"],"visualPrompt":"Animated style. Close-up detalhado na relíquia flutuante. Seus contornos são fluidos e suas superfícies parecem conter galáxias em miniatura e constelações. A luz interna pulsa ritmicamente, como um coração cósmico. Pequenos símbolos antigos podem ser vistos gravados em sua superfície. Câmera lenta com zoom in nos detalhes.","narrationText":"Seus segredos eram os segredos do universo, aguardando para serem revelados.","imagePath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/scenes/scene_12.png","clipPath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/clips/scene_12.mp4","status":"completed"},{"sceneNumber":13,"durationSeconds":5,"characterIds":["char_cc396efd"],"visualPrompt":"Animated style. Cleber se aproxima da relíquia, sua mão estendida lentamente, hesitando por um momento antes de sua determinação prevalecer. Sua expressão é uma mistura de reverência e um toque de sua curiosidade 'Nerd' e coragem 'Gaúcha'. A luz da relíquia se intensifica suavemente em resposta à sua presença. Câmera de médio plano, focando na mão de Cleber e na relíquia.","narrationText":"Com uma mistura de reverência e audácia, Cleber estendeu sua mão.","imagePath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/scenes/scene_13.png","clipPath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/clips/scene_13.mp4","status":"completed"},{"sceneNumber":14,"durationSeconds":5,"characterIds":["char_cc396efd"],"visualPrompt":"Animated style. A ponta dos dedos de Cleber toca a superfície da relíquia. No momento do contato, um flash de luz branca intensa e um som vibrante irrompem, fazendo com que pequenos cristais ao redor tremam. A relíquia começa a girar lentamente. Close-up no momento do toque e no flash de luz.","narrationText":"O toque ativou a energia adormecida, um poder de eras passadas.","imagePath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/scenes/scene_14.png","clipPath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/clips/scene_14.mp4","status":"completed"},{"sceneNumber":15,"durationSeconds":5,"characterIds":["char_cc396efd"],"visualPrompt":"Animated style. A relíquia explode em uma cascata de energia dourada e brilhante que se expande rapidamente, envolvendo Cleber em seu brilho. Ele levanta os braços, absorvendo a energia, seu traje espacial e o ambiente cristalino ao redor são banhados em ouro puro. Câmera de 360 graus, mostrando a explosão de luz e a figura de Cleber no centro.","narrationText":"Uma torrente de luz dourada irrompeu, preenchendo o cosmos com seu brilho.","imagePath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/scenes/scene_15.png","clipPath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/clips/scene_15.mp4","status":"completed"},{"sceneNumber":16,"durationSeconds":5,"characterIds":["char_cc396efd"],"visualPrompt":"Animated style. A energia dourada se eleva do planeta cristalino como um feixe de luz cósmica, expandindo-se para o espaço sideral. Visto de uma perspectiva distante, o planeta cristalino brilha como uma estrela recém-nascida, enviando ondas de luz dourada para todas as direções. Câmera recuando para mostrar o planeta irradiando luz.","narrationText":"A relíquia despertou, tecendo uma nova tapeçaria de energia pelo universo.","imagePath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/scenes/scene_16.png","clipPath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/clips/scene_16.mp4","status":"completed"},{"sceneNumber":17,"durationSeconds":5,"characterIds":[],"visualPrompt":"Animated style. Vista panorâmica do universo, onde as ondas de energia dourada da relíquia se espalham, reiluminando nebulosas escuras, revelando novas constelações e pintando galáxias com cores vibrantes. É uma visão majestosa de um cosmos transformado, mais brilhante e cheio de vida. Câmera lenta e panorâmica através do universo em renovação.","narrationText":"O cosmos foi banhado em um esplendor dourado, uma visão de pura magia.","imagePath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/scenes/scene_17.png","clipPath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/clips/scene_17.mp4","status":"completed"},{"sceneNumber":18,"durationSeconds":5,"characterIds":["char_cc396efd"],"visualPrompt":"Animated style. Cleber está de volta à ponte de comando de sua nave, Estrela Colorada. Ele observa pela janela a vasta extensão do universo transformado, com as novas luzes douradas visíveis à distância. Sua expressão é de profunda satisfação e admiração, um leve sorriso brincando em seus lábios. Câmera focada em Cleber, depois em sua visão do universo.","narrationText":"De volta à sua nave, Cleber observava o universo, agora mais vibrante.","imagePath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/scenes/scene_18.png","clipPath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/clips/scene_18.mp4","status":"completed"},{"sceneNumber":19,"durationSeconds":5,"characterIds":["char_cc396efd"],"visualPrompt":"Animated style. Close-up no rosto de Cleber. Ele remove os óculos e esfrega o queixo pensativamente, um sorriso confiante e satisfeito. A luz dourada do universo refletida em seus olhos. Seu semblante transmite a alegria de quem cumpriu uma grande missão, combinando sua natureza 'de bem com a vida' com seu espírito aventureiro. Câmera lenta, com um brilho suave no rosto de Cleber.","narrationText":"Ele havia iniciado uma nova era, um tempo de iluminação e descobertas.","imagePath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/scenes/scene_19.png","clipPath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/clips/scene_19.mp4","status":"completed"},{"sceneNumber":20,"durationSeconds":5,"characterIds":[],"visualPrompt":"Animated style. Uma montagem rápida de novas cenas espaciais: naves exploradoras voando em direção a galáxias recém-iluminadas, cientistas (de diversas espécies) em laboratórios flutuantes analisando dados cósmicos, e belas paisagens de novos planetas descobertos. Tudo banhado por um brilho dourado sutil, simbolizando a nova era. Transições rápidas e dinâmicas entre as imagens.","narrationText":"Os segredos do universo estavam agora ao alcance, graças à sua ousadia.","imagePath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/scenes/scene_20.png","clipPath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/clips/scene_20.mp4","status":"completed"}];
+    const characters = [{"id":"char_71ac4183","name":"Pedro","description":"Homem jovem de 28 anos, cabelos castanhos curtos, expressão alegre e confiante, vestindo jaqueta azul moderna e calça jeans. Estilo aventureiro contemporâneo.","headshotPath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/chars/char_71ac4183/rosto1_face.png","fullbodyPath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/chars/char_71ac4183/corpo1_nobg.png"},{"id":"char_cc396efd","name":"Cleber","description":"Cleber 45 anos, torcedor do Sport Club Internacional, Gaúcho, estilo Nerd mas ao mesmo tempo gosta de esportes e futebol. Sempre de bem com a vida e gosta de trabalhar com programação e projetos de startups.","headshotPath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/chars/char_cc396efd/headshot2_face.png","fullbodyPath":"/Users/cleber/Documents/dev/antigravity/tendencias/motion-quest/output/run/chars/char_cc396efd/fullbody3_nobg.png"}];
+    let currentIndex = 0;
+    let isPlaying = true;
+    let sceneTimer = null;
+    let progressTimer = null;
+    const sceneDuration = 5000; // 5 segundos
+    let elapsed = 0;
+
+    function renderScene(index) {
+      if (index < 0) index = 0;
+      if (index >= scenes.length) index = scenes.length - 1;
+      currentIndex = index;
+
+      const scene = scenes[currentIndex];
+      document.getElementById('sceneBadge').textContent = 'Cena ' + scene.sceneNumber + ' / ' + scenes.length;
+      document.getElementById('subtitleText').textContent = scene.narrationText;
+      document.getElementById('scenePromptText').textContent = scene.visualPrompt;
+      document.getElementById('promptDetailText').textContent = scene.visualPrompt;
+
+      const char = characters.find(c => scene.characterIds.includes(c.id));
+      document.getElementById('charBadge').textContent = char ? '👤 ' + char.name : '🎬 Cena';
+
+      elapsed = 0;
+      updateProgress();
+    }
+
+    function updateProgress() {
+      const pct = (elapsed / sceneDuration) * 100;
+      document.getElementById('progressBar').style.width = pct + '%';
+    }
+
+    function tick() {
+      if (!isPlaying) return;
+      elapsed += 100;
+      updateProgress();
+      if (elapsed >= sceneDuration) {
+        if (currentIndex < scenes.length - 1) {
+          renderScene(currentIndex + 1);
+        } else {
+          renderScene(0); // Loop
+        }
+      }
+    }
+
+    function togglePlay() {
+      isPlaying = !isPlaying;
+      document.getElementById('playBtn').textContent = isPlaying ? '⏸️ Pausar' : '▶️ Reproduzir';
+    }
+
+    function nextScene() {
+      renderScene(currentIndex + 1);
+    }
+
+    function prevScene() {
+      renderScene(currentIndex - 1);
+    }
+
+    renderScene(0);
+    setInterval(tick, 100);
+  </script>
+</body>
+</html>
