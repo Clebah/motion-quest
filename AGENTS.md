@@ -16,6 +16,17 @@ Antes de realizar modificações ou propor mudanças arquiteturais, consulte a d
 - 🛠️ [Guia de Desenvolvimento & Makefile (DEVELOPMENT.md)](docs/guides/DEVELOPMENT.md)
 - 📋 [Especificação Ativa (SPEC-002 v3)](docs/sdd/SPEC_002_PERSONA_VIDEO_GENERATION_POC.md)
 
+### 🧰 Skills Integradas (Tech Leads Club)
+As seguintes skills especializadas estão disponíveis em `.agents/skills/` (espelhadas em `.claude/skills/`):
+- **`tlc-spec-driven`**: Orquestrador das 4 fases SDD (Specify ➔ Design ➔ Tasks ➔ Execute).
+- **`tlc-plan`**: Planejamento granular de fatias observáveis e tarefas atômicas.
+- **`tlc-implement`**: Implementação guiada por extração de critérios e validação em gates.
+- **`tactical-ddd`**: Padrões táticos de Domain-Driven Design e fronteiras hexagonais.
+- **`modular-design-principles`**: Princípios de desacoplamento, estabilidade e coesão entre workers.
+- **`react-best-practices`**: Melhores práticas e padrões determinísticos de renderização com React/Remotion.
+- **`coding-guidelines`**: Convenções de código limpo para Python e TypeScript.
+- **`docs-writer`**: Redação de documentação técnica com alta densidade e diagramas.
+
 ---
 
 ## 🎯 Visão do Produto e Objetivo Atual

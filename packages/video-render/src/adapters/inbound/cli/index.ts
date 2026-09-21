@@ -1,5 +1,5 @@
-import { RenderFromManifestUseCase } from "../../application/use-cases/RenderFromManifestUseCase.js";
-import { RemotionRendererAdapter } from "../../adapters/outbound/RemotionRendererAdapter.js";
+import { RenderFromManifestUseCase } from "../../../application/use-cases/RenderFromManifestUseCase.js";
+import { RemotionRendererAdapter } from "../../outbound/RemotionRendererAdapter.js";
 
 async function main() {
   const args = process.argv.slice(2);
@@ -16,7 +16,7 @@ async function main() {
 
   if (!manifestPath) {
     console.error("❌ Error: Missing --manifest argument.");
-    console.error("Usage: npm start -- --manifest=path/to/manifest.json [--out=out/video.mp4]");
+    console.error("Usage: node dist/adapters/inbound/cli/index.js --manifest=path/to/manifest.json [--out=out/video.mp4]");
     process.exit(1);
   }
 
@@ -32,4 +32,7 @@ async function main() {
   }
 }
 
-main();
+main().catch((err) => {
+  console.error("Fatal error:", err);
+  process.exit(1);
+});

@@ -22,5 +22,18 @@ Bem-vindo à documentação oficial do projeto **Motion Quest**. Abaixo está o 
 
 ---
 
+## 🧰 Skills de Agentes (Tech Leads Club)
+Skills instaladas em `.agents/skills/` (espelhadas em `.claude/skills/`):
+- `tlc-spec-driven`: Orquestrador Spec-Driven Development do Harness Toolkit.
+- `tlc-plan`: Fatiamento de requisitos em tarefas atômicas observáveis.
+- `tlc-implement`: Execução guiada por testes e validação contínua em gates.
+- `tactical-ddd`: Modelagem de domínio rico e regras de camadas hexagonais.
+- `modular-design-principles`: Princípios de dependências acíclicas e baixo acoplamento.
+- `react-best-practices`: Melhores práticas de renderização e performance React/Remotion.
+- `coding-guidelines`: Convenções universais de código limpo.
+- `docs-writer`: Padrões para escrita de documentação técnica.
+
+---
+
 ## 🤖 Agentes e Automação
 - [Manual de Instruções para Agentes (AGENTS.md)](../AGENTS.md): Diretrizes para agentes de inteligência artificial (Claude, Antigravity, Gemini).
