@@ -1,92 +1,144 @@
-# SPEC-002: Geração de Vídeos Animados Personalizados a partir de Fotos Reais e Roteiros (PoC)
+# SPEC-002: Geração de Vídeos Animados Personalizados a partir de Fotos Reais e Roteiros
 
 ## Metadata
 - **Status:** APPROVED
 - **Author:** Motion Quest Product & Engineering Team
 - **Created:** 2026-09-20
-- **Version:** 1.0.0
-- **Active Spec:** Sim
+- **Revised:** 2026-09-21
+- **Version:** 3.0.0
 
 ---
 
-## 1. Visão Geral do Produto (PoC)
+## 1. Visão Geral
 
-Permitir que qualquer usuário crie vídeos animados personalizados com duração entre **1m30s e 2min** a partir de fotos reais de pessoas (elenco de até 5 personagens) e roteiros customizados, contando com divisão automática em cenas (18 a 24 cenas de 5s cada), acompanhamento de progresso e download do vídeo final em formato `.mp4`.
+Permitir que qualquer usuário crie vídeos animados personalizados de **1m30s a 2min** a partir de fotos reais (até 5 personagens) e roteiros customizados, com divisão automática em cenas, acompanhamento de progresso e download do `.mp4` final.
+
+### Visão de Produto (Roadmap)
+
+| Fase | Escopo | Interface |
+| :--- | :--- | :--- |
+| **PoC (esta spec)** | Pipeline CLI local, validação do fluxo completo | CLI Python + CLI Remotion |
+| **MVP Cloud** | Deploy em cloud (GCP/AWS), API REST, website | FastAPI + Next.js (Web) |
+| **Multiplataforma** | Apps nativos Android/iOS (como o Mimo) | React Native / Expo |
+
+> A Arquitetura Hexagonal garante que o código de domínio e use cases da PoC seja **reutilizado integralmente** no MVP Cloud e nos apps móveis — apenas os adaptadores de entrada (CLI → API → Mobile SDK) e de infraestrutura (local → S3 → CDN) mudam.
 
 ---
 
-## 2. Capacidades de Negócio & Requisitos Funcionais
+## 2. Arquitetura Híbrida (Python + TypeScript)
+
+```
+┌───────────────────────────────────────────────────────────────────┐
+│   Worker 1: packages/ai-vision  (Python 3.12+)                   │
+├───────────────────────────────────────────────────────────────────┤
+│ • LLM/Roteirização: Google Gemini (google-genai)                 │
+│ • Geração de Imagem: Imagen 3 (Gemini API) + fal-client fallback│
+│ • Visão: rembg + OpenCV + Pillow + MediaPipe                    │
+│ • Animação I2V: Veo 2 (Gemini API) + fal-client fallback        │
+│ • Roteirização: Funções Python + Pydantic (structured output)    │
+│ • Entry PoC: CLI sequencial (pipeline.py)                        │
+│ • Entry Prod: FastAPI + Celery/Temporal                          │
+└──────────────────────────────┬────────────────────────────────────┘
+                               │ manifest.json + assets
+                               │ PoC: pasta local  │  Prod: S3 + Redis Queue
+                               ▼
+┌───────────────────────────────────────────────────────────────────┐
+│   Worker 2: packages/video-render  (TypeScript + Remotion)       │
+├───────────────────────────────────────────────────────────────────┤
+│ • Lê manifest.json e monta timeline de vídeo                     │
+│ • Composições React: <Sequence>, <OffthreadVideo>, <Audio>       │
+│ • Formato default: 1080x1920 (9:16 vertical)                    │
+│ • Entry PoC: CLI Node                                            │
+│ • Entry Prod: @remotion/lambda (AWS) ou Cloud Run                │
+└───────────────────────────────────────────────────────────────────┘
+```
+
+### Transição PoC → Produção (Zero Refatoração de Domínio)
+
+| Camada | PoC | Produção |
+| :--- | :--- | :--- |
+| Storage | Pasta local `output/` | AWS S3 / GCS |
+| Queue | Chamada direta (sequencial) | Redis + BullMQ |
+| Inbound API | CLI Python | FastAPI + WebSocket (progresso) |
+| Frontend Web | — | Next.js |
+| Mobile | — | React Native / Expo |
+| Face Detection | MediaPipe (~5MB) | InsightFace (embeddings de alta precisão) |
+| Roteirização | Funções + Pydantic | LangGraph StateGraph |
+| Renderização | `@remotion/renderer` local | `@remotion/lambda` (AWS) |
+| CDN / Entrega | Arquivo local | CloudFront / Cloud CDN |
+
+---
+
+## 3. Requisitos Funcionais
 
 ### RF-01: Cadastro do Elenco (Personagens)
-- **Qtd. Máxima:** Até 5 personagens por projeto.
-- **Perfil:** Nome + Breve descrição de estilo e características marcantes.
-- **Fotos de Referência:**
-  - 1 a 5 fotos focadas no rosto (Headshots).
-  - 1 a 5 fotos de corpo inteiro (Full-body).
-- **Preparação Visual Automática:** Pipeline de pré-processamento de imagem (remoção de fundo, alinhamento facial e extração de embedding/features visuais) para garantir consistência dos rostos nas cenas.
+- Até 5 personagens por projeto.
+- Perfil: nome + descrição de estilo/características.
+- Fotos: 1 a 5 headshots + 1 a 5 full-body por personagem.
+- Pré-processamento automático:
+  - Remoção de fundo (`rembg`).
+  - Crop facial inteligente (`OpenCV` + `MediaPipe`).
+  - Colagens de referência para consistência visual.
+  - Cache de embeddings (processados uma vez, reutilizados em todas as cenas).
 
 ### RF-02: Definição da História (Roteiro e Cenas)
-- **Seleção de Elenco:** Escolha de quais personagens cadastrados participam da história.
-- **Modo de Criação:**
-  - *Modelo Pronto:* Jornada do Herói, Comédia, Aventura, etc.
-  - *Texto Livre:* Prompt/roteiro customizado fornecido pelo usuário.
-- **Divisão Automática em Cenas:** O sistema divide o roteiro em **18 a 24 cenas de 5 segundos cada** (garantindo duração total de 90s a 120s).
-- **Revisão pelo Usuário:** Visualização da lista de cenas com atribuição de personagens por cena, prompt visual e legenda/narração, permitindo edição prévia.
+- Seleção de quais personagens participam.
+- Modo modelo pronto (Jornada do Herói, Comédia, Aventura) ou texto livre.
+- Divisão automática via Google Gemini com structured output (Pydantic):
+  - **Range recomendado:** 18 a 24 cenas (soft constraint, warning ao usuário).
+  - **Range permitido:** 12 a 30 cenas (hard constraint).
+  - **Duração por cena:** 3s a 7s (default 5s).
+  - **Duração total:** 60s a 150s.
+- Revisão e edição pelo usuário antes de produzir.
 
-### RF-03: Fabricação do Vídeo (Pipeline de Produção)
-- **Geração Visual Consistente:** Criação da imagem estática de cada cena preservando a identidade visual dos personagens.
-- **Animação das Cenas:** Transformação de cada cena estática em um clipe animado de 5 segundos (Image-to-Video).
-- **Acompanhamento Transparente:** Exibição do progresso em tempo real (`X` de `N` cenas animadas, percentual concluído e etapa atual).
-- **Montagem Final Automática:** Concatenação ordenada das 18-24 cenas na timeline contínua do Remotion.
+### RF-03: Fabricação do Vídeo (Pipeline)
+- Geração visual consistente por cena (Imagen 3 / fal-client fallback).
+- Animação I2V de cada cena (Veo 2 / fal-client fallback).
+- **Retry com backoff exponencial** (3 tentativas por cena).
+- **Fallback de provedor** automático (Gemini API → fal-client).
+- **Processamento parcial:** progresso salvo; retomável em caso de falha.
+- Progresso transparente em tempo real.
+- Estimativa de custo antes da execução (`EstimateCostUseCase`).
 
 ### RF-04: Entrega e Consumo
-- **Player de Pré-visualização:** Player de vídeo integrado no frontend para reprodução imediata pós-renderização.
-- **Download MP4:** Exportação e download do arquivo `.mp4` final em alta qualidade.
+- Player de pré-visualização integrado (Web/Mobile na produção).
+- Download `.mp4` (9:16 vertical por default, 16:9 horizontal opcional).
 
 ---
 
-## 3. Mapeamento na Arquitetura Hexagonal
+## 4. Stack Tecnológica — Matriz de Decisão
 
-```
-┌─────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                 WORKER 1: packages/ai-vision                                │
-├───────────────────────────────┬───────────────────────────────┬─────────────────────────────┤
-│ Domain Entities               │ Inbound Ports (Use Cases)     │ Outbound Ports (Adapters)   │
-├───────────────────────────────┼───────────────────────────────┼─────────────────────────────┤
-│ • Character (Perfil, Embeds)  │ • RegisterCharacterPort       │ • ImageProcessorPort        │
-│ • Storyboard (18-24 scenes)   │ • GenerateStoryboardPort      │ • StoryGeneratorPort (LLM)  │
-│ • SceneAsset (Image Specs)    │ • GenerateSceneAssetsPort     │ • ImageGeneratorPort        │
-└───────────────────────────────┴───────────────────────────────┴─────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────────────────────────────────┐
-│                               WORKER 2: packages/video-render                               │
-├───────────────────────────────┬───────────────────────────────┬─────────────────────────────┤
-│ Domain Entities               │ Inbound Ports (Use Cases)     │ Outbound Ports (Adapters)   │
-├───────────────────────────────┼───────────────────────────────┼─────────────────────────────┤
-│ • RenderJob (Status, Progress)│ • AnimateScenePort            │ • VideoAnimatorPort (I2V)   │
-│ • StorylineTimeline (5s/seg)  │ • AssembleTimelinePort        │ • RemotionEnginePort        │
-│ • ExportArtifact (.mp4)       │ • RenderFinalVideoPort        │ • StoragePort               │
-└───────────────────────────────┴───────────────────────────────┴─────────────────────────────┘
-```
+| Responsabilidade | Tecnologia | Justificativa |
+| :--- | :--- | :--- |
+| LLM / Roteirização | **Google Gemini** (`google-genai`) | Mesma chave do Mimo. Structured output nativo com `response_schema`. |
+| Geração de Imagem | **Imagen 3** (Gemini API) + **fal-client** fallback | Uma chave, um billing. Fallback para FLUX.1/SDXL se qualidade insuficiente. |
+| Animação I2V | **Veo 2** (Gemini API) + **fal-client** fallback (Kling/Luma) | Mesma chave. Fallback se Veo 2 não atender qualidade ou duração. |
+| Visão / Pré-processamento | **rembg** + **OpenCV** + **Pillow** + **MediaPipe** | Ecossistema Python maduro. MediaPipe leve para PoC, InsightFace para prod. |
+| Tipagem / Validação | **Pydantic v2** | Garante output estruturado da LLM sem falha de JSON. |
+| Composição de Vídeo | **Remotion** (`remotion`, `react`, `react-dom`) | Timeline programática com componentes React. |
+| Renderização | **`@remotion/renderer`** (PoC) / **`@remotion/lambda`** (Prod) | Headless `.mp4`. Lambda escala horizontalmente. |
+| Orquestração (Prod) | **Makefile** (PoC) / **Celery ou Temporal** (Prod) | PoC não precisa de orquestrador; prod escala com workers. |
 
 ---
 
-## 4. Estrutura de Dados & Contratos JSON
+## 5. Contrato: `manifest.json`
 
-### 4.1 Contrato do Storyboard (Output do Worker 1 ──► Input do Worker 2)
+Output do Worker Python → Input do Worker Remotion:
 
 ```json
 {
-  "projectId": "proj_123456",
+  "version": "1.0",
+  "projectId": "proj_abc123",
   "title": "Aventuras de Pedro e Ana",
-  "totalScenes": 20,
-  "totalDurationSeconds": 100,
+  "resolution": { "width": 1080, "height": 1920 },
+  "fps": 30,
   "characters": [
     {
       "id": "char_1",
       "name": "Pedro",
       "description": "Homem jovem, alegre, casaco azul",
-      "processedHeadshotUrls": ["https://storage/char_1_face.png"]
+      "headshotPath": "chars/char_1_face.png",
+      "fullbodyPath": "chars/char_1_body.png"
     }
   ],
   "scenes": [
@@ -94,31 +146,42 @@ Permitir que qualquer usuário crie vídeos animados personalizados com duraçã
       "sceneNumber": 1,
       "durationSeconds": 5,
       "characterIds": ["char_1"],
-      "visualPrompt": "Pedro acenando na praia ensolarada estilo ilustração animada",
-      "narrationText": "Tudo começou em um dia ensolarado de verão...",
-      "generatedImageUrl": "https://storage/scene_01.png"
+      "visualPrompt": "Pedro acenando na praia ensolarada",
+      "narrationText": "Tudo começou em um dia ensolarado...",
+      "imagePath": "scenes/scene_01.png",
+      "clipPath": "clips/scene_01.mp4",
+      "status": "completed"
     }
-  ]
+  ],
+  "audio": {
+    "backgroundMusicPath": "audio/bg_music.mp3",
+    "volume": 0.3
+  },
+  "estimatedCost": {
+    "currency": "USD",
+    "imageGeneration": 1.20,
+    "videoAnimation": 3.40,
+    "total": 4.60
+  }
 }
 ```
 
 ---
 
-## 5. Gates de Qualidade & Aceite (Harness SDD)
+## 6. Gates de Qualidade (Harness SDD)
 
-1. **Gate 1 - Validação do Elenco:**
-   - Todo personagem cadastrado deve conter entre 1 e 5 fotos de rosto e 1 e 5 de corpo.
-2. **Gate 2 - Validação de Duração e Cenas:**
-   - O storyboard deve obrigatoriamente gerar entre **18 e 24 cenas**.
-   - Cada cena deve ter duração exata de **5 segundos**.
-   - Duração total deve estar restrita a **90s <= T <= 120s**.
-3. **Gate 3 - Renderização Remotion:**
-   - O vídeo final deve ser exportado no formato `.mp4` com resolução mínima de 1080x1920 (Vertical 9:16) ou 1920x1080.
-4. **Gate 4 - Testes Automatizados:**
-   - `npm test` deve validar os UseCases com mocks dos adaptadores de IA e Animação.
+| Gate | Validação | Tipo |
+| :--- | :--- | :--- |
+| **Elenco** | 1-5 fotos rosto + 1-5 fotos corpo por personagem | Hard |
+| **Duração** | 12-30 cenas; 3-7s por cena; total 60s-150s | Hard |
+| **Renderização** | `.mp4` mínimo 1080x1920 | Hard |
+| **Testes Python** | `pytest packages/ai-vision/tests/` | Automated |
+| **Testes Remotion** | `npm test --workspace=packages/video-render` | Automated |
+| **Manifest válido** | Schema JSON validado antes de enviar ao Remotion | Hard |
 
 ---
 
-## 6. Atualização no Harness Config
+## 7. Configuração do Gemini
 
-A especificação ativa em `.tlc/harness/config.json` foi definida para `SPEC_002_PERSONA_VIDEO_GENERATION_POC.md`.
+Chave API Google Gemini **compartilhada com o projeto Mimo** (`https://github.com/Clebah/mimo`).
+Variável de ambiente `GEMINI_API_KEY` carregada via `.env`.
