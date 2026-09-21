@@ -1,0 +1,25 @@
+{
+  "name": "motion-quest",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Motion Quest — Plataforma de Geração de Vídeos Animados Personalizados",
+  "workspaces": [
+    "packages/video-render"
+  ],
+  "scripts": {
+    "test": "npm test --workspaces --if-present",
+    "test:ai": "cd packages/ai-vision && python3 tests/exec_tests.py",
+    "test:video": "npm test --workspace=packages/video-render",
+    "pipeline:ai:mock": "cd packages/ai-vision && PYTHONPATH=. python3 src/adapters/inbound/cli/pipeline.py --mock --output ../../output/run",
+    "render:video": "cd packages/video-render && npm run render -- --manifest=../../output/run/manifest.json",
+    "preview": "cd packages/video-render && npm run dev"
+  },
+  "keywords": [
+    "video-generation",
+    "remotion",
+    "gemini",
+    "ai",
+    "motion-quest"
+  ],
+  "author": "Clebah"
+}

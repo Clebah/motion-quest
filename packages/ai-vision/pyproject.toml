@@ -1,0 +1,37 @@
+[project]
+name = "motion-quest-ai-vision"
+version = "0.1.0"
+description = "Worker de IA, Visão Computacional e Roteirização para o Motion Quest"
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "google-genai>=1.0.0",
+    "pydantic>=2.0.0",
+    "pillow>=10.0.0",
+    "opencv-python-headless>=4.8.0",
+    "rembg>=2.0.0",
+    "mediapipe>=0.10.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0.0",
+    "pytest-asyncio>=0.23.0",
+]
+prod = [
+    "fal-client>=0.4.0",
+    "insightface>=0.7.0",
+    "langgraph>=0.2.0",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.30.0",
+    "celery[redis]>=5.4.0",
+]
+
+[build-system]
+requires = ["setuptools>=75.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+asyncio_mode = "auto"

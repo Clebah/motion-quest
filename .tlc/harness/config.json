@@ -7,8 +7,8 @@
     "activeSpec": "SPEC_002_PERSONA_VIDEO_GENERATION_POC.md"
   },
   "gates": {
-    "testCommand": "npm test",
-    "lintCommand": "npm run build"
+    "testCommand": "make test",
+    "lintCommand": "make test"
   },
   "shell": {
     "catastrophicAsk": true
