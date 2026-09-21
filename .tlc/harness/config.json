@@ -1,0 +1,21 @@
+{
+  "$schema": "https://raw.githubusercontent.com/tech-leads-club/harness-toolkit/main/schema.json",
+  "version": "1.0",
+  "project": "motion-quest",
+  "sdd": {
+    "specsDir": "docs/sdd",
+    "activeSpec": "SPEC_002_PERSONA_VIDEO_GENERATION_POC.md"
+  },
+  "gates": {
+    "testCommand": "npm test",
+    "lintCommand": "npm run build"
+  },
+  "shell": {
+    "catastrophicAsk": true
+  },
+  "intelligence": {
+    "gapFeedback": true,
+    "failureClassification": true,
+    "progressiveHandoff": true
+  }
+}
