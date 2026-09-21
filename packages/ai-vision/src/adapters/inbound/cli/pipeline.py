@@ -70,10 +70,23 @@ def discover_characters(inputs_dir: Path) -> list[dict]:
                 f for f in fullbody_dir.glob("*") if f.suffix.lower() in valid_exts
             ] if fullbody_dir.exists() else []
 
+            description = f"Personagem {name} cadastrado a partir de fotos reais."
+            for desc_name in ["descricao.txt", "perfil.txt", "description.txt"]:
+                desc_file = char_dir / desc_name
+                if desc_file.exists():
+                    try:
+                        with open(desc_file, "r", encoding="utf-8") as f:
+                            custom_desc = f.read().strip()
+                            if custom_desc:
+                                description = custom_desc
+                                break
+                    except Exception:
+                        pass
+
             if headshots and fullbody:
                 characters.append({
                     "name": name,
-                    "description": f"Personagem {name} cadastrado a partir de fotos reais.",
+                    "description": description,
                     "headshots": headshots,
                     "fullbody": fullbody,
                 })
