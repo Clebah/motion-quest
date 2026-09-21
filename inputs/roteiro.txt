@@ -1,7 +1,7 @@
 # Roteiro do Projeto — Motion Quest
 # Você pode editar o texto abaixo com a história que desejar!
 
-Pedro é um jovem explorador espacial que recebe uma transmissão misteriosa vinda dos confins da galáxia.
+Cleber é um adulto explorador espacial que recebe uma transmissão misteriosa vinda dos confins da galáxia.
 Ele embarca em sua nave estelar, atravessa nebulosas coloridas e chega a um planeta cristalino desconhecido.
 Lá, ele encontra uma relíquia ancestral flutuante que guarda os segredos do universo.
-Com coragem e determinação, Pedro ativa a relíquia, iluminando o cosmos com uma energia dourada e iniciando uma nova era de descobertas.
+Com coragem e determinação, Cleber ativa a relíquia, iluminando o cosmos com uma energia dourada e iniciando uma nova era de descobertas.

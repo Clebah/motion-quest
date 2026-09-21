@@ -181,7 +181,8 @@ async def run_pipeline(args):
         prompt_text = args.prompt
     elif Path(args.prompt_file).exists():
         with open(args.prompt_file, "r", encoding="utf-8") as f:
-            prompt_text = f.read().strip()
+            lines = [l.strip() for l in f if l.strip() and not l.strip().startswith("#")]
+            prompt_text = " ".join(lines)
     else:
         prompt_text = "Uma viagem épica pelo espaço em busca de um cristal cósmico perdido."
 

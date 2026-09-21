@@ -38,6 +38,15 @@ Respond ONLY with valid JSON with this exact structure:
   ]
 }}"""
 
+# Candidate models in priority order
+FALLBACK_MODELS = [
+    "gemini-2.5-flash",
+    "gemini-flash-latest",
+    "gemini-2.5-pro",
+    "gemini-pro-latest",
+    "gemini-2.0-flash",
+]
+
 
 class GeminiLlmAdapter(LlmProviderPort):
     """Concrete adapter for Google Gemini API.
@@ -46,7 +55,7 @@ class GeminiLlmAdapter(LlmProviderPort):
     Shares the same GEMINI_API_KEY as the Mimo project.
     """
 
-    def __init__(self, model: str = "gemini-2.0-flash"):
+    def __init__(self, model: str = "gemini-2.5-flash"):
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
             raise EnvironmentError(
@@ -90,48 +99,73 @@ class GeminiLlmAdapter(LlmProviderPort):
             data = json.loads(response.text)
             return StoryboardSchema(**data)
         except Exception:
-            # Fallback to direct REST API via urllib (zero external dependency)
+            # Fallback to direct REST API via urllib (zero external dependency) with model fallbacks
             return await self._generate_via_rest(system_instruction, user_message)
 
     async def _generate_via_rest(
         self, system_instruction: str, user_message: str
     ) -> StoryboardSchema:
-        url = (
-            f"https://generativelanguage.googleapis.com/v1beta/models/"
-            f"{self._model}:generateContent?key={self._api_key}"
-        )
-        payload = {
-            "systemInstruction": {"parts": [{"text": system_instruction}]},
-            "contents": [{"parts": [{"text": user_message}]}],
-            "generationConfig": {
-                "temperature": 0.8,
-                "responseMimeType": "application/json",
-            },
-        }
+        models_to_try = [self._model] + [m for m in FALLBACK_MODELS if m != self._model]
+        last_error = None
 
-        data_bytes = json.dumps(payload).encode("utf-8")
-        req = urllib.request.Request(
-            url,
-            data=data_bytes,
-            headers={"Content-Type": "application/json"},
-        )
-
-        ctx = ssl._create_unverified_context()
-        with urllib.request.urlopen(req, context=ctx) as resp:
-            body = json.loads(resp.read().decode("utf-8"))
-
-        raw_text = body["candidates"][0]["content"]["parts"][0]["text"]
-        parsed = json.loads(raw_text)
-
-        scenes = [
-            SceneSchema(
-                scene_number=s.get("scene_number", idx + 1),
-                duration_seconds=float(s.get("duration_seconds", 5.0)),
-                character_ids=s.get("character_ids", []),
-                visual_prompt=s.get("visual_prompt", ""),
-                narration_text=s.get("narration_text", ""),
+        for model_name in models_to_try:
+            url = (
+                f"https://generativelanguage.googleapis.com/v1beta/models/"
+                f"{model_name}:generateContent?key={self._api_key}"
             )
-            for idx, s in enumerate(parsed.get("scenes", []))
-        ]
+            payload = {
+                "systemInstruction": {"parts": [{"text": system_instruction}]},
+                "contents": [{"parts": [{"text": user_message}]}],
+                "generationConfig": {
+                    "temperature": 0.8,
+                    "responseMimeType": "application/json",
+                },
+            }
 
-        return StoryboardSchema(title=parsed.get("title", "História Animada"), scenes=scenes)
+            data_bytes = json.dumps(payload).encode("utf-8")
+            req = urllib.request.Request(
+                url,
+                data=data_bytes,
+                headers={"Content-Type": "application/json"},
+            )
+
+            ctx = ssl._create_unverified_context()
+            try:
+                with urllib.request.urlopen(req, context=ctx) as resp:
+                    body = json.loads(resp.read().decode("utf-8"))
+
+                raw_text = body["candidates"][0]["content"]["parts"][0]["text"]
+                parsed = json.loads(raw_text)
+
+                scenes = [
+                    SceneSchema(
+                        scene_number=s.get("scene_number", idx + 1),
+                        duration_seconds=float(s.get("duration_seconds", 5.0)),
+                        character_ids=s.get("character_ids", []),
+                        visual_prompt=s.get("visual_prompt", ""),
+                        narration_text=s.get("narration_text", ""),
+                    )
+                    for idx, s in enumerate(parsed.get("scenes", []))
+                ]
+
+                print(f"   🤖 Gemini conectado com sucesso via modelo: '{model_name}'!")
+                return StoryboardSchema(
+                    title=parsed.get("title", "História Animada"), scenes=scenes
+                )
+            except urllib.error.HTTPError as err:
+                error_body = ""
+                try:
+                    error_body = err.read().decode("utf-8")
+                except Exception:
+                    pass
+                last_error = f"HTTP {err.code}: {error_body or err.msg}"
+                # If 404, try next model in fallback list
+                if err.code == 404:
+                    continue
+                else:
+                    raise RuntimeError(f"Gemini API error ({err.code}): {error_body}")
+            except Exception as e:
+                last_error = str(e)
+                continue
+
+        raise RuntimeError(f"Falha ao conectar aos modelos do Gemini: {last_error}")
