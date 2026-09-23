@@ -12,12 +12,7 @@ from src.application.use_cases.generate_storyboard import GenerateStoryboardUseC
 from src.application.use_cases.generate_scene_assets import GenerateSceneAssetsUseCase
 from src.application.use_cases.export_manifest import ExportManifestUseCase
 from src.adapters.outbound.local_storage_adapter import LocalStorageAdapter
-from src.adapters.outbound.mock_adapters import (
-    MockLlmAdapter,
-    MockImageGeneratorAdapter,
-    MockVideoAnimatorAdapter,
-    MockImageProcessorAdapter,
-)
+from src.adapters.inbound.cli.adapter_factory import build_adapters
 
 
 def create_sample_photo(path: Path, label: str):
@@ -111,29 +106,11 @@ async def run_pipeline(args):
     # 1. Setup Adapters
     storage = LocalStorageAdapter(output_dir)
 
-    if is_live:
-        try:
-            from src.adapters.outbound.gemini_llm_adapter import GeminiLlmAdapter
-            from src.adapters.outbound.gemini_image_generator import GeminiImageGeneratorAdapter
-            llm_provider = GeminiLlmAdapter()
-            image_processor = MockImageProcessorAdapter()
-            image_gen = GeminiImageGeneratorAdapter()
-            video_anim = MockVideoAnimatorAdapter()
-            print("🔑 Chave GEMINI_API_KEY carregada com sucesso!")
-            print("🎨 Adaptador Gemini Visual (gemini-2.5-flash-image) ativado para geração de cenas!")
-        except Exception as e:
-            print(f"⚠️ Erro ao inicializar adaptadores Gemini ({e}). Alternando para mock.")
-            llm_provider = MockLlmAdapter()
-            image_processor = MockImageProcessorAdapter()
-            image_gen = MockImageGeneratorAdapter()
-            video_anim = MockVideoAnimatorAdapter()
-    else:
-        if not gemini_key:
-            print("💡 Dica: Configure sua chave no arquivo .env para executar em modo LIVE.")
-        llm_provider = MockLlmAdapter()
-        image_processor = MockImageProcessorAdapter()
-        image_gen = MockImageGeneratorAdapter()
-        video_anim = MockVideoAnimatorAdapter()
+    bundle = build_adapters(force_mock=args.mock)
+    llm_provider = bundle.llm_provider
+    image_processor = bundle.image_processor
+    image_gen = bundle.image_gen
+    video_anim = bundle.video_anim
 
     # 2. Use Cases
     register_char_uc = RegisterCharacterUseCase(image_processor)
