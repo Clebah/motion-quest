@@ -1,11 +1,13 @@
 # SPEC-003: Interface Web Local para Criação de Personagens e Roteiros
 
 ## Metadata
-- **Status:** DRAFT
+- **Status:** IMPLEMENTED
 - **Author:** Motion Quest Product & Engineering Team
 - **Created:** 2026-09-22
-- **Version:** 1.0.0
+- **Revised:** 2026-09-23
+- **Version:** 1.1.0
 - **Depende de:** SPEC-002 (reaproveita os use cases e o contrato `manifest.json` sem alterações)
+- **Walkthrough:** [WALKTHROUGH_SPEC_003.md](WALKTHROUGH_SPEC_003.md)
 
 ---
 
