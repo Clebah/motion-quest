@@ -13,7 +13,8 @@ Bem-vindo à documentação oficial do projeto **Motion Quest**. Abaixo está o 
 
 ## 📋 Especificações de Produto (SDD)
 - [SPEC-001: Estrutura Monorepo e Arquitetura Hexagonal](sdd/SPEC_001_MOTION_QUEST_HEXAGONAL.md): Especificação fundacional das fronteiras e camadas.
-- [SPEC-002: Geração de Vídeos Animados Personalizados (PoC)](sdd/SPEC_002_PERSONA_VIDEO_GENERATION_POC.md): Especificação aprovada de negócio e técnica para a PoC do gerador de vídeos.
+- [SPEC-002: Geração de Vídeos Animados Personalizados (PoC)](sdd/SPEC_002_PERSONA_VIDEO_GENERATION_POC.md): Especificação implementada de negócio e técnica para a PoC do gerador de vídeos.
+- [SPEC-003: Interface Web Local para Criação de Personagens e Roteiros](sdd/SPEC_003_WEB_UI_LOCAL.md): Especificação da UI local (FastAPI + HTML/JS puro) para cadastrar elenco, escolher/escrever roteiro e gerar o vídeo com progresso em tempo real.
 
 ---
 
