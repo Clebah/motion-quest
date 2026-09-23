@@ -259,6 +259,13 @@
     }
   }
 
+  function stopPolling() {
+    if (state.pollHandle) clearInterval(state.pollHandle);
+    state.pollHandle = null;
+    state.currentJobId = null;
+    updateGenerateButtonState();
+  }
+
   function pollJobStatus() {
     if (state.pollHandle) clearInterval(state.pollHandle);
 
@@ -266,17 +273,33 @@
       const jobId = state.currentJobId;
       if (!jobId) return;
 
-      const res = await fetch(`/api/jobs/${jobId}`);
-      if (!res.ok) return;
-      const job = await res.json();
+      let res;
+      try {
+        res = await fetch(`/api/jobs/${jobId}`);
+      } catch (err) {
+        // Network hiccup: keep polling, the server may come back.
+        return;
+      }
 
+      if (!res.ok) {
+        // A previously-in-flight job that the server no longer knows about (most
+        // commonly: the server was restarted, which resets the in-memory job store)
+        // would otherwise poll silently forever. Stop and say so instead.
+        stopPolling();
+        showError(
+          el.generateError,
+          res.status === 404
+            ? "Essa geração não existe mais no servidor (ele foi reiniciado?). Clique em 'Gerar Vídeo' novamente."
+            : `Erro ao consultar o progresso (HTTP ${res.status}).`,
+        );
+        return;
+      }
+
+      const job = await res.json();
       renderProgress(job);
 
       if (job.status === "completed" || job.status === "failed") {
-        clearInterval(state.pollHandle);
-        state.pollHandle = null;
-        state.currentJobId = null;
-        updateGenerateButtonState();
+        stopPolling();
 
         if (job.status === "completed") {
           el.resultVideo.src = job.videoUrl;
