@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import ClassVar
 
 try:
     from pydantic import BaseModel
@@ -30,7 +31,7 @@ class StoryboardSchema(BaseModel):
     title: str
     scenes: list[SceneSchema]
 
-    SceneSchema = SceneSchema
+    SceneSchema: ClassVar[type] = SceneSchema
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
