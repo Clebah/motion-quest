@@ -30,12 +30,14 @@
         </div>
         <div class="field-row">
           <label>
-            Fotos de rosto (1 a 5)
-            <input type="file" id="character-headshots" name="headshots" accept=".png,.jpg,.jpeg,.webp" multiple required>
+            Fotos de rosto (1 a 5) — pode adicionar aos poucos
+            <input type="file" id="character-headshots" accept=".png,.jpg,.jpeg,.webp" multiple>
+            <div id="headshots-staged" class="staged-files"></div>
           </label>
           <label>
-            Fotos de corpo inteiro (1 a 5)
-            <input type="file" id="character-fullbody" name="fullbody" accept=".png,.jpg,.jpeg,.webp" multiple required>
+            Fotos de corpo inteiro (1 a 5) — pode adicionar aos poucos
+            <input type="file" id="character-fullbody" accept=".png,.jpg,.jpeg,.webp" multiple>
+            <div id="fullbody-staged" class="staged-files"></div>
           </label>
         </div>
         <button type="submit" id="character-submit">+ Adicionar Personagem</button>

@@ -3,6 +3,7 @@
   "use strict";
 
   const MIN_ROTEIRO_LENGTH = 20;
+  const MAX_PHOTOS_PER_TYPE = 5;
   const POLL_INTERVAL_MS = 2000;
 
   const state = {
@@ -11,6 +12,12 @@
     selectedTemplateId: null,
     currentJobId: null,
     pollHandle: null,
+    // Native <input type="file"> replaces its FileList on every selection instead of
+    // appending to it, so picking photos "aos poucos" (a folder, then one more) would
+    // silently drop the earlier ones. These arrays are the real source of truth; the
+    // inputs are kept in sync just so their native "N files" readout stays honest.
+    pendingHeadshots: [],
+    pendingFullbody: [],
   };
 
   const el = {
@@ -20,6 +27,8 @@
     characterDescription: document.getElementById("character-description"),
     characterHeadshots: document.getElementById("character-headshots"),
     characterFullbody: document.getElementById("character-fullbody"),
+    headshotsStaged: document.getElementById("headshots-staged"),
+    fullbodyStaged: document.getElementById("fullbody-staged"),
     characterSubmit: document.getElementById("character-submit"),
     characterError: document.getElementById("character-error"),
     characterList: document.getElementById("character-list"),
@@ -109,15 +118,78 @@
     await loadCharacters();
   }
 
+  function filesToFileList(files) {
+    const dt = new DataTransfer();
+    files.forEach((f) => dt.items.add(f));
+    return dt.files;
+  }
+
+  function fileKey(file) {
+    return `${file.name}__${file.size}__${file.lastModified}`;
+  }
+
+  // Merges a fresh selection from the OS file picker into the accumulated list for
+  // that photo type, instead of replacing it — this is what lets the user add photos
+  // one folder / one file at a time.
+  function handlePhotoInputChange(inputEl, pendingKey, stagedListEl) {
+    const existingKeys = new Set(state[pendingKey].map(fileKey));
+    const incoming = Array.from(inputEl.files).filter((f) => !existingKeys.has(fileKey(f)));
+    const merged = [...state[pendingKey], ...incoming];
+
+    const overflow = merged.length - MAX_PHOTOS_PER_TYPE;
+    state[pendingKey] = merged.slice(0, MAX_PHOTOS_PER_TYPE);
+    inputEl.files = filesToFileList(state[pendingKey]);
+    renderStagedFiles(stagedListEl, pendingKey);
+    updateGenerateButtonState();
+
+    if (overflow > 0) {
+      showError(el.characterError, `Máximo de ${MAX_PHOTOS_PER_TYPE} fotos por tipo — ${overflow} foto(s) extra(s) não foram adicionadas.`);
+    }
+  }
+
+  function renderStagedFiles(listEl, pendingKey) {
+    listEl.innerHTML = "";
+    state[pendingKey].forEach((file, idx) => {
+      const chip = document.createElement("span");
+      chip.className = "file-chip";
+      chip.innerHTML = `${file.name} <button type="button" aria-label="Remover ${file.name}">×</button>`;
+      chip.querySelector("button").addEventListener("click", () => removeStagedFile(pendingKey, idx));
+      listEl.appendChild(chip);
+    });
+  }
+
+  function removeStagedFile(pendingKey, idx) {
+    state[pendingKey].splice(idx, 1);
+    const inputEl = pendingKey === "pendingHeadshots" ? el.characterHeadshots : el.characterFullbody;
+    const stagedListEl = pendingKey === "pendingHeadshots" ? el.headshotsStaged : el.fullbodyStaged;
+    inputEl.files = filesToFileList(state[pendingKey]);
+    renderStagedFiles(stagedListEl, pendingKey);
+  }
+
+  function resetCharacterFormState() {
+    el.characterForm.reset();
+    state.pendingHeadshots = [];
+    state.pendingFullbody = [];
+    el.characterHeadshots.value = "";
+    el.characterFullbody.value = "";
+    renderStagedFiles(el.headshotsStaged, "pendingHeadshots");
+    renderStagedFiles(el.fullbodyStaged, "pendingFullbody");
+  }
+
   async function submitCharacterForm(evt) {
     evt.preventDefault();
     showError(el.characterError, "");
 
+    if (state.pendingHeadshots.length === 0 || state.pendingFullbody.length === 0) {
+      showError(el.characterError, "Adicione ao menos 1 foto de rosto e 1 foto de corpo inteiro.");
+      return;
+    }
+
     const formData = new FormData();
     formData.append("name", el.characterName.value.trim());
     formData.append("description", el.characterDescription.value.trim());
-    for (const file of el.characterHeadshots.files) formData.append("headshots", file);
-    for (const file of el.characterFullbody.files) formData.append("fullbody", file);
+    for (const file of state.pendingHeadshots) formData.append("headshots", file);
+    for (const file of state.pendingFullbody) formData.append("fullbody", file);
 
     el.characterSubmit.disabled = true;
     try {
@@ -126,7 +198,7 @@
         const body = await res.json().catch(() => ({}));
         throw new Error(body.detail || `Erro ao cadastrar personagem (HTTP ${res.status})`);
       }
-      el.characterForm.reset();
+      resetCharacterFormState();
       await loadCharacters();
     } catch (err) {
       showError(el.characterError, err.message);
@@ -229,6 +301,10 @@
   }
 
   el.characterForm.addEventListener("submit", submitCharacterForm);
+  el.characterHeadshots.addEventListener("change", () =>
+    handlePhotoInputChange(el.characterHeadshots, "pendingHeadshots", el.headshotsStaged));
+  el.characterFullbody.addEventListener("change", () =>
+    handlePhotoInputChange(el.characterFullbody, "pendingFullbody", el.fullbodyStaged));
   el.roteiroTextarea.addEventListener("input", () => {
     updateRoteiroCount();
     updateGenerateButtonState();
