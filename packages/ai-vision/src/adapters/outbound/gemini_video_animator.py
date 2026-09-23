@@ -1,6 +1,7 @@
 """Adapter: Google Veo 2 for Image-to-Video animation (via Gemini API)."""
 from __future__ import annotations
 
+import asyncio
 import os
 import time
 from pathlib import Path
@@ -33,9 +34,19 @@ class GeminiVideoAnimatorAdapter(VideoAnimatorPort):
     ) -> Path:
         """Animate a still image into a video clip using Veo 2.
 
-        Veo 2 generates 5-8 second clips from an image + prompt.
+        Veo 2 generates 5-8 second clips from an image + prompt. The whole
+        generate-and-poll sequence is synchronous, blocking SDK/network calls
+        (including a `time.sleep` poll loop that can run for 1-3 minutes), so it
+        runs in a worker thread via asyncio.to_thread — calling it directly here
+        would freeze the entire event loop (every request the web server is
+        handling) for as long as Veo 2 takes.
         """
-        # Read the source image
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        return await asyncio.to_thread(
+            self._animate_scene_sync, image_path, prompt, output_path
+        )
+
+    def _animate_scene_sync(self, image_path: Path, prompt: str, output_path: Path) -> Path:
         with open(image_path, "rb") as f:
             image_bytes = f.read()
 
@@ -71,7 +82,6 @@ class GeminiVideoAnimatorAdapter(VideoAnimatorPort):
             raise RuntimeError("Veo 2 failed to generate video clip")
 
         video = operation.response.generated_videos[0].video
-        output_path.parent.mkdir(parents=True, exist_ok=True)
         with open(output_path, "wb") as f:
             f.write(video.video_bytes)
 

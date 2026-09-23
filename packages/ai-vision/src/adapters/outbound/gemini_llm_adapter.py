@@ -1,6 +1,7 @@
 """Adapter: Google Gemini LLM provider (same API key as Mimo project)."""
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import ssl
@@ -37,6 +38,13 @@ Respond ONLY with valid JSON with this exact structure:
     }}
   ]
 }}"""
+
+def _urlopen_json(req: urllib.request.Request, ctx: ssl.SSLContext) -> dict:
+    """Blocking HTTP call, meant to run inside asyncio.to_thread — never call directly
+    from a coroutine, or it blocks the whole event loop for the call's duration."""
+    with urllib.request.urlopen(req, context=ctx) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
 
 # Candidate models in priority order
 FALLBACK_MODELS = [
@@ -80,27 +88,35 @@ class GeminiLlmAdapter(LlmProviderPort):
         if story_template:
             user_message += f"\n## Story Template: {story_template}\n"
 
-        # Try using SDK if available
+        # Try using SDK if available. The SDK call is synchronous network I/O, so it
+        # runs in a worker thread — calling it directly here would block the whole
+        # asyncio event loop (and therefore every other request the web server is
+        # handling) for as long as the call takes.
         try:
-            from google import genai
-            from google.genai import types
-
-            client = genai.Client(api_key=self._api_key)
-            response = client.models.generate_content(
-                model=self._model,
-                contents=user_message,
-                config=types.GenerateContentConfig(
-                    system_instruction=system_instruction,
-                    response_mime_type="application/json",
-                    response_schema=StoryboardSchema,
-                    temperature=0.8,
-                ),
+            return await asyncio.to_thread(
+                self._call_sdk_sync, system_instruction, user_message
             )
-            data = json.loads(response.text)
-            return StoryboardSchema(**data)
         except Exception:
             # Fallback to direct REST API via urllib (zero external dependency) with model fallbacks
             return await self._generate_via_rest(system_instruction, user_message)
+
+    def _call_sdk_sync(self, system_instruction: str, user_message: str) -> StoryboardSchema:
+        from google import genai
+        from google.genai import types
+
+        client = genai.Client(api_key=self._api_key)
+        response = client.models.generate_content(
+            model=self._model,
+            contents=user_message,
+            config=types.GenerateContentConfig(
+                system_instruction=system_instruction,
+                response_mime_type="application/json",
+                response_schema=StoryboardSchema,
+                temperature=0.8,
+            ),
+        )
+        data = json.loads(response.text)
+        return StoryboardSchema(**data)
 
     async def _generate_via_rest(
         self, system_instruction: str, user_message: str
@@ -131,8 +147,7 @@ class GeminiLlmAdapter(LlmProviderPort):
 
             ctx = ssl._create_unverified_context()
             try:
-                with urllib.request.urlopen(req, context=ctx) as resp:
-                    body = json.loads(resp.read().decode("utf-8"))
+                body = await asyncio.to_thread(_urlopen_json, req, ctx)
 
                 raw_text = body["candidates"][0]["content"]["parts"][0]["text"]
                 parsed = json.loads(raw_text)

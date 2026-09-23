@@ -1,6 +1,7 @@
 """Adapter: Google Gemini Visual Models for scene image generation (via Gemini API)."""
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
 import os
@@ -16,6 +17,14 @@ DEFAULT_MODELS = [
     "gemini-3-pro-image",
     "gemini-3-pro-image-preview",
 ]
+
+
+def _urlopen_json(req: urllib.request.Request, timeout: int) -> dict:
+    """Blocking HTTP call, meant to run inside asyncio.to_thread — never call directly
+    from a coroutine, or it blocks the whole event loop (every request the web server
+    is handling) for up to `timeout` seconds."""
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return json.loads(resp.read().decode("utf-8"))
 
 
 class GeminiImageGeneratorAdapter(ImageGeneratorPort):
@@ -114,19 +123,18 @@ class GeminiImageGeneratorAdapter(ImageGeneratorPort):
                 )
 
                 # Up to 60s timeout for generative image
-                with urllib.request.urlopen(req, timeout=60) as resp:
-                    res = json.loads(resp.read().decode("utf-8"))
-                    candidates = res.get("candidates", [])
-                    if not candidates:
-                        raise RuntimeError("No candidates returned by model")
+                res = await asyncio.to_thread(_urlopen_json, req, 60)
+                candidates = res.get("candidates", [])
+                if not candidates:
+                    raise RuntimeError("No candidates returned by model")
 
-                    content_parts = candidates[0].get("content", {}).get("parts", [])
-                    for part in content_parts:
-                        if "inlineData" in part:
-                            img_bytes = base64.b64decode(part["inlineData"]["data"])
-                            with open(output_path, "wb") as f:
-                                f.write(img_bytes)
-                            return output_path
+                content_parts = candidates[0].get("content", {}).get("parts", [])
+                for part in content_parts:
+                    if "inlineData" in part:
+                        img_bytes = base64.b64decode(part["inlineData"]["data"])
+                        with open(output_path, "wb") as f:
+                            f.write(img_bytes)
+                        return output_path
 
                 raise RuntimeError("Response contained no inline image data")
             except Exception as e:
