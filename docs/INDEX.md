@@ -23,6 +23,11 @@ Bem-vindo à documentação oficial do projeto **Motion Quest**. Abaixo está o 
 
 ---
 
+## 🎤 Apresentações
+- [SDD + Harness — Engineering na Prática (Cleber-Souza-SDD-Harness.pptx)](Cleber-Souza-SDD-Harness.pptx): Apresentação sobre o uso do fluxo Spec-Driven Development e do TLC Harness Toolkit na implementação da SPEC-003. Ver também [RELATO.MD](../RELATO.MD) para o relato narrativo completo.
+
+---
+
 ## 🧰 Skills de Agentes (Tech Leads Club)
 Skills instaladas em `.agents/skills/` (espelhadas em `.claude/skills/`):
 - `tlc-spec-driven`: Orquestrador Spec-Driven Development do Harness Toolkit.
