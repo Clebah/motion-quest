@@ -66,6 +66,18 @@ class TestWebAdapter(unittest.TestCase):
         app_module.job_store._jobs.clear()
         app_module.job_store._active_job_id = None
 
+    def test_index_page_serves_expected_frontend_anchors(self):
+        with TestClient(app_module.app) as client:
+            resp = client.get("/")
+            self.assertEqual(resp.status_code, 200)
+            body = resp.text
+            for anchor_id in (
+                "character-form", "character-list", "template-grid",
+                "roteiro-textarea", "generate-button", "result-video",
+            ):
+                self.assertIn(f'id="{anchor_id}"', body)
+            self.assertIn('src="/static/app.js"', body)
+
     def test_get_templates_returns_five(self):
         with TestClient(app_module.app) as client:
             resp = client.get("/api/templates")

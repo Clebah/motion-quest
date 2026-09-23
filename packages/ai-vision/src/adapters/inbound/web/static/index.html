@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Motion Quest — Interface Local</title>
+  <link rel="stylesheet" href="/static/styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <h1>🎬 Motion Quest</h1>
+    <span id="mode-badge" class="badge badge--unknown">Verificando modo…</span>
+  </header>
+
+  <main>
+    <section class="card" id="section-elenco">
+      <h2>① Elenco</h2>
+      <p class="hint">Cadastre de 1 a 5 personagens. Cada um precisa de 1 a 5 fotos de rosto e 1 a 5 fotos de corpo inteiro.</p>
+
+      <form id="character-form" class="character-form">
+        <div class="field-row">
+          <label>
+            Nome
+            <input type="text" id="character-name" name="name" required maxlength="60" placeholder="Ex.: Pedro">
+          </label>
+          <label>
+            Descrição (opcional)
+            <input type="text" id="character-description" name="description" maxlength="200" placeholder="Ex.: jovem explorador de jaqueta azul">
+          </label>
+        </div>
+        <div class="field-row">
+          <label>
+            Fotos de rosto (1 a 5)
+            <input type="file" id="character-headshots" name="headshots" accept=".png,.jpg,.jpeg,.webp" multiple required>
+          </label>
+          <label>
+            Fotos de corpo inteiro (1 a 5)
+            <input type="file" id="character-fullbody" name="fullbody" accept=".png,.jpg,.jpeg,.webp" multiple required>
+          </label>
+        </div>
+        <button type="submit" id="character-submit">+ Adicionar Personagem</button>
+        <p id="character-error" class="error" hidden></p>
+      </form>
+
+      <div id="character-list" class="character-list"></div>
+    </section>
+
+    <section class="card" id="section-roteiro">
+      <h2>② Roteiro</h2>
+      <p class="hint">Escolha um dos templates abaixo (o texto fica editável) ou escreva sua própria história.</p>
+
+      <div id="template-grid" class="template-grid"></div>
+
+      <textarea id="roteiro-textarea" rows="6" placeholder="Escreva aqui a história do seu vídeo (mínimo 20 caracteres)…"></textarea>
+      <p id="roteiro-count" class="hint">0 caracteres</p>
+    </section>
+
+    <section class="card" id="section-gerar">
+      <h2>③ Gerar</h2>
+
+      <button type="button" id="generate-button" disabled>Gerar Vídeo</button>
+      <p id="generate-hint" class="hint">Cadastre ao menos um personagem primeiro.</p>
+      <p id="generate-error" class="error" hidden></p>
+
+      <div id="progress-section" hidden>
+        <div class="progress-bar-track">
+          <div id="progress-bar-fill" class="progress-bar-fill"></div>
+        </div>
+        <p id="progress-message" class="hint"></p>
+      </div>
+
+      <div id="result-section" hidden>
+        <video id="result-video" controls></video>
+        <p><a id="result-download" download="motion-quest.mp4">⬇ Baixar .mp4</a></p>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/app.js" defer></script>
+</body>
+</html>

@@ -1,0 +1,265 @@
+:root {
+  --bg: #0f1220;
+  --card-bg: #171b2e;
+  --text: #e8e9f3;
+  --text-muted: #9498b3;
+  --accent: #7c6cff;
+  --accent-hover: #9587ff;
+  --border: #2a2f4a;
+  --error: #ff6b6b;
+  --success: #4fd18b;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  line-height: 1.5;
+}
+
+.app-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.app-header h1 {
+  margin: 0;
+  font-size: 1.25rem;
+}
+
+.badge {
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.badge--live {
+  background: rgba(79, 209, 139, 0.15);
+  color: var(--success);
+}
+
+.badge--mock {
+  background: rgba(124, 108, 255, 0.15);
+  color: var(--accent-hover);
+}
+
+.badge--unknown {
+  background: rgba(148, 152, 179, 0.15);
+  color: var(--text-muted);
+}
+
+main {
+  max-width: 780px;
+  margin: 0 auto;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+}
+
+.card h2 {
+  margin-top: 0;
+}
+
+.hint {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.error {
+  color: var(--error);
+  font-size: 0.875rem;
+}
+
+.field-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+@media (max-width: 600px) {
+  .field-row {
+    grid-template-columns: 1fr;
+  }
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.875rem;
+}
+
+input[type="text"],
+textarea {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  padding: 0.5rem 0.65rem;
+  font-size: 0.9rem;
+  font-family: inherit;
+}
+
+input[type="file"] {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+textarea {
+  width: 100%;
+  resize: vertical;
+}
+
+button {
+  background: var(--accent);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 0.6rem 1.1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+button:hover:not(:disabled) {
+  background: var(--accent-hover);
+}
+
+button:disabled {
+  background: var(--border);
+  color: var(--text-muted);
+  cursor: not-allowed;
+}
+
+.character-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.character-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.5rem;
+  width: 110px;
+  text-align: center;
+  position: relative;
+}
+
+.character-card img {
+  width: 90px;
+  height: 90px;
+  object-fit: cover;
+  border-radius: 8px;
+  background: var(--bg);
+}
+
+.character-card .name {
+  font-size: 0.8rem;
+  margin-top: 0.35rem;
+  word-break: break-word;
+}
+
+.character-card .remove-btn {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  padding: 0;
+  font-size: 0.75rem;
+  line-height: 1;
+  background: var(--error);
+}
+
+.template-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 0.6rem;
+  margin-bottom: 1rem;
+}
+
+.template-card {
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 0.65rem;
+  cursor: pointer;
+  background: var(--bg);
+  text-align: left;
+}
+
+.template-card:hover {
+  border-color: var(--accent);
+}
+
+.template-card.selected {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.template-card .genre {
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  color: var(--accent-hover);
+  letter-spacing: 0.03em;
+}
+
+.template-card .title {
+  font-weight: 600;
+  font-size: 0.9rem;
+  margin: 0.2rem 0;
+}
+
+.template-card .synopsis {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.progress-bar-track {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  height: 10px;
+  overflow: hidden;
+  margin-top: 0.75rem;
+}
+
+.progress-bar-fill {
+  background: var(--accent);
+  height: 100%;
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+#result-video {
+  width: 100%;
+  max-width: 320px;
+  border-radius: 10px;
+  margin-top: 1rem;
+  display: block;
+}
+
+#result-download {
+  color: var(--accent-hover);
+  font-weight: 600;
+}
