@@ -1,11 +1,12 @@
-.PHONY: help test test-ai test-video pipeline-mock render run all clean
+.PHONY: help test test-ai test-video pipeline-mock render run web all clean
 
 help:
 	@echo "=========================================================="
-	@echo "🎬 Motion Quest — Monorepo Automation (SPEC-002 v3)"
+	@echo "🎬 Motion Quest — Monorepo Automation (SPEC-002 v3 / SPEC-003)"
 	@echo "=========================================================="
 	@echo "Comandos disponíveis:"
 	@echo "  make run           - Roda o pipeline com as fotos de inputs/ e gera o vídeo final"
+	@echo "  make web           - Sobe a interface web local em http://127.0.0.1:8000"
 	@echo "  make all           - Roda testes + pipeline em modo teste + renderiza vídeo"
 	@echo "  make test          - Executa os testes automatizados de ambos os workers"
 	@echo "  make test-ai       - Executa os testes do Worker de IA (Python)"
@@ -38,6 +39,10 @@ run:
 render:
 	@echo "🎥 Renderizando vídeo via Worker Video Render..."
 	cd packages/video-render && node dist/adapters/inbound/cli/index.js --manifest=../../output/run/manifest.json --out=out/meu_video.mp4
+
+web:
+	@echo "🌐 Subindo a interface web local em http://127.0.0.1:8000 ..."
+	cd packages/ai-vision && PYTHONPATH=. python3 -m uvicorn src.adapters.inbound.web.app:app --host 127.0.0.1 --port 8000
 
 all: test pipeline-mock render
 	@echo "🌟 Execução completa finalizada com sucesso!"
