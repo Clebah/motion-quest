@@ -7,10 +7,12 @@
   "scripts": {
     "dev": "remotion preview src/infrastructure/remotion/index.ts",
     "render": "node dist/adapters/inbound/cli/index.js",
-    "build": "tsc --noEmit",
+    "build": "tsc",
     "test": "node --test tests/**/*.test.js"
   },
   "dependencies": {
+    "@remotion/bundler": "^4.0.527",
+    "@remotion/renderer": "^4.0.527",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "remotion": "^4.0.218"

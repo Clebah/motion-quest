@@ -114,13 +114,15 @@ async def run_pipeline(args):
     if is_live:
         try:
             from src.adapters.outbound.gemini_llm_adapter import GeminiLlmAdapter
+            from src.adapters.outbound.gemini_image_generator import GeminiImageGeneratorAdapter
             llm_provider = GeminiLlmAdapter()
             image_processor = MockImageProcessorAdapter()
-            image_gen = MockImageGeneratorAdapter()
+            image_gen = GeminiImageGeneratorAdapter()
             video_anim = MockVideoAnimatorAdapter()
             print("🔑 Chave GEMINI_API_KEY carregada com sucesso!")
+            print("🎨 Adaptador Gemini Visual (gemini-2.5-flash-image) ativado para geração de cenas!")
         except Exception as e:
-            print(f"⚠️ Erro ao inicializar adaptador Gemini ({e}). Alternando para mock.")
+            print(f"⚠️ Erro ao inicializar adaptadores Gemini ({e}). Alternando para mock.")
             llm_provider = MockLlmAdapter()
             image_processor = MockImageProcessorAdapter()
             image_gen = MockImageGeneratorAdapter()

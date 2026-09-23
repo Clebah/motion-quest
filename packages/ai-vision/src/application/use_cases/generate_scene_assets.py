@@ -59,12 +59,18 @@ class GenerateSceneAssetsUseCase:
 
             # Gather reference images from characters in this scene
             reference_images: list[Path] = []
-            for cid in scene.character_ids:
-                char = char_map.get(cid)
-                if char:
-                    for photo in char.headshots:
-                        if photo.processed_path:
-                            reference_images.append(photo.processed_path)
+            target_chars = [char_map[cid] for cid in scene.character_ids if cid in char_map]
+            if not target_chars:
+                # Fallback: check if prompt mentions any character by name
+                for c in characters:
+                    if c.name.lower() in scene.visual_prompt.lower() or c.name.lower() in scene.narration_text.lower():
+                        target_chars.append(c)
+
+            for char in target_chars:
+                for photo in char.headshots:
+                    p = photo.processed_path or photo.path
+                    if p and Path(p).exists():
+                        reference_images.append(Path(p))
 
             # Step 1: Generate scene image (with retry)
             image_path = scenes_dir / f"scene_{scene.scene_number:02d}.png"

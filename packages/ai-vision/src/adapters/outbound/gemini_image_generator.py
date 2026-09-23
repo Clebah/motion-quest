@@ -1,28 +1,35 @@
-"""Adapter: Google Imagen 3 for scene image generation (via Gemini API)."""
+"""Adapter: Google Gemini Visual Models for scene image generation (via Gemini API)."""
 from __future__ import annotations
 
 import base64
+import json
 import os
+import urllib.request
+import urllib.error
 from pathlib import Path
-
-from google import genai
-from google.genai import types
 
 from src.application.ports.outbound.image_generator_port import ImageGeneratorPort
 
+DEFAULT_MODELS = [
+    "gemini-2.5-flash-image",
+    "gemini-3.1-flash-image",
+    "gemini-3-pro-image",
+    "gemini-3-pro-image-preview",
+]
+
 
 class GeminiImageGeneratorAdapter(ImageGeneratorPort):
-    """Generates scene images using Google Imagen 3 via the Gemini API.
+    """Generates scene images using Gemini multimodal image models.
 
-    Uses the same GEMINI_API_KEY as the Mimo project.
+    Supports reference persona photos (e.g. Cleber headshots) to maintain
+    character likeness in the animated sci-fi style.
     """
 
-    def __init__(self, model: str = "imagen-3.0-generate-002"):
-        api_key = os.getenv("GEMINI_API_KEY")
-        if not api_key:
+    def __init__(self, model: str = "gemini-2.5-flash-image"):
+        self._api_key = os.getenv("GEMINI_API_KEY", "").strip()
+        if not self._api_key:
             raise EnvironmentError("GEMINI_API_KEY not set.")
-        self._client = genai.Client(api_key=api_key)
-        self._model = model
+        self._primary_model = model
 
     async def generate_scene_image(
         self,
@@ -32,36 +39,99 @@ class GeminiImageGeneratorAdapter(ImageGeneratorPort):
         width: int = 1080,
         height: int = 1920,
     ) -> Path:
-        """Generate a scene image using Imagen 3.
-
-        Note: Imagen 3 doesn't natively support IP-Adapter/reference images
-        in the same way as FLUX.1. For the PoC, we embed the character
-        description in the prompt. For production, swap this adapter for
-        FalImageGeneratorAdapter which supports IP-Adapter.
-        """
-        # Enhance prompt with aspect ratio hint
-        aspect = "vertical 9:16" if height > width else "horizontal 16:9"
-        enhanced_prompt = (
-            f"{prompt}. "
-            f"High quality animated illustration style, {aspect} format, "
-            f"vibrant colors, cinematic lighting."
-        )
-
-        response = self._client.models.generate_images(
-            model=self._model,
-            prompt=enhanced_prompt,
-            config=types.GenerateImagesConfig(
-                number_of_images=1,
-                aspect_ratio="9:16" if height > width else "16:9",
-            ),
-        )
-
-        if not response.generated_images:
-            raise RuntimeError(f"Imagen 3 returned no images for scene")
-
-        image_data = response.generated_images[0].image.image_bytes
+        """Generate a scene image using Gemini Visual model."""
+        output_path = Path(output_path).resolve()
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(output_path, "wb") as f:
-            f.write(image_data)
 
-        return output_path
+        # Skip if already exists and has valid content (>10KB)
+        if output_path.exists() and output_path.stat().st_size > 10000:
+            return output_path
+
+        aspect_ratio = "vertical 9:16" if height > width else "horizontal 16:9"
+        
+        # Prepare parts
+        parts: list[dict] = []
+
+        # Find a valid reference image if provided
+        valid_ref: Path | None = None
+        for ref in reference_images:
+            p = Path(ref).resolve()
+            if p.exists() and p.stat().st_size > 1000:
+                valid_ref = p
+                break
+
+        if valid_ref:
+            try:
+                with open(valid_ref, "rb") as f:
+                    img_b64 = base64.b64encode(f.read()).decode("utf-8")
+                
+                mime = "image/jpeg" if valid_ref.suffix.lower() in [".jpg", ".jpeg"] else "image/png"
+                parts.append({
+                    "inline_data": {
+                        "mime_type": mime,
+                        "data": img_b64,
+                    }
+                })
+
+                instruction = (
+                    f"Transform the person shown in the reference photo into an animated sci-fi character. "
+                    f"Maintain their facial features, glasses, beard, and likeness recognizably. "
+                    f"Scene: {prompt}. "
+                    f"Style: Cinematic 2D/3D sci-fi animation, {aspect_ratio} composition, "
+                    f"vibrant cosmic colors, gorgeous dynamic lighting, high resolution."
+                )
+            except Exception as e:
+                print(f"   ⚠️ Could not read reference image {valid_ref}: {e}")
+                instruction = (
+                    f"Animated sci-fi scene: {prompt}. "
+                    f"Style: Cinematic animation, {aspect_ratio} composition, vibrant colors, dynamic lighting."
+                )
+        else:
+            instruction = (
+                f"Animated sci-fi scene: {prompt}. "
+                f"Style: Cinematic animation, {aspect_ratio} composition, vibrant colors, dynamic lighting."
+            )
+
+        parts.insert(0, {"text": instruction})
+
+        models_to_try = [self._primary_model] + [m for m in DEFAULT_MODELS if m != self._primary_model]
+        last_error = None
+
+        for model_name in models_to_try:
+            try:
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent?key={self._api_key}"
+                payload = {
+                    "contents": [{"parts": parts}],
+                    "generationConfig": {
+                        "responseModalities": ["IMAGE"]
+                    }
+                }
+
+                req = urllib.request.Request(
+                    url,
+                    data=json.dumps(payload).encode("utf-8"),
+                    headers={"Content-Type": "application/json"},
+                )
+
+                # Up to 60s timeout for generative image
+                with urllib.request.urlopen(req, timeout=60) as resp:
+                    res = json.loads(resp.read().decode("utf-8"))
+                    candidates = res.get("candidates", [])
+                    if not candidates:
+                        raise RuntimeError("No candidates returned by model")
+
+                    content_parts = candidates[0].get("content", {}).get("parts", [])
+                    for part in content_parts:
+                        if "inlineData" in part:
+                            img_bytes = base64.b64decode(part["inlineData"]["data"])
+                            with open(output_path, "wb") as f:
+                                f.write(img_bytes)
+                            return output_path
+
+                raise RuntimeError("Response contained no inline image data")
+            except Exception as e:
+                last_error = e
+                # Try next model if current model fails
+                continue
+
+        raise RuntimeError(f"All image models failed to generate scene. Last error: {last_error}")
