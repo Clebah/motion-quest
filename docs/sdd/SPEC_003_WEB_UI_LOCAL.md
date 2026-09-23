@@ -187,6 +187,7 @@ Todas as rotas abaixo, exceto os estáticos, retornam/aceitam `application/json`
 | Método | Rota | Descrição |
 | :--- | :--- | :--- |
 | `GET` | `/` | Serve `static/index.html` (SPA de página única). |
+| `GET` | `/api/mode` | Retorna `{ "isLive": boolean }` — usado pela UI para exibir o modo ativo (RF-05.1). |
 | `GET` | `/api/templates` | Lista os 5 templates de roteiro. |
 | `GET` | `/api/characters` | Lista personagens cadastrados na sessão atual. |
 | `POST` | `/api/characters` | `multipart/form-data`: `name`, `description`, `headshots[]`, `fullbody[]`. Registra via `RegisterCharacterUseCase`. |
