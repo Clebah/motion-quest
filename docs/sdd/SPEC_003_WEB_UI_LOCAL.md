@@ -1,11 +1,11 @@
 # SPEC-003: Interface Web Local para Criação de Personagens e Roteiros
 
 ## Metadata
-- **Status:** IMPLEMENTED
+- **Status:** IMPLEMENTED — validado com renderização real em modo LIVE
 - **Author:** Motion Quest Product & Engineering Team
 - **Created:** 2026-09-22
 - **Revised:** 2026-09-23
-- **Version:** 1.1.0
+- **Version:** 1.2.0
 - **Depende de:** SPEC-002 (reaproveita os use cases e o contrato `manifest.json` sem alterações)
 - **Walkthrough:** [WALKTHROUGH_SPEC_003.md](WALKTHROUGH_SPEC_003.md)
 
@@ -491,3 +491,17 @@ Notas de execução descobertas ao planejar as tarefas (não mudam o design, só
 | T9 | Frontend estático (3 seções: Elenco, Roteiro, Gerar) | `adapters/inbound/web/static/{index.html,app.js,styles.css}` | T8 | `make test-ai` (checagem leve: `GET /` 200 e contém os ids esperados) + smoke visual manual (T11) | `feat(web-ui): add static frontend for character registration, templates and generation` |
 | T10 | Alvo `make web` | `Makefile` | T8 | `make -n web` (dry-run mostra o comando `uvicorn` correto) | `chore(build): add make web target to launch the local UI` |
 | T11 | Smoke E2E manual em modo MOCK (subir `make web`, navegar pelo fluxo completo) + walkthrough documentado + `make test` completo (regressão dos 2 workers) | `docs/sdd/WALKTHROUGH_SPEC_003.md`, `docs/sdd/SPEC_003_WEB_UI_LOCAL.md` (Status → IMPLEMENTED) | T9, T10 | `make test` (zero regressão) + roteiro manual documentado | `docs(sdd): document SPEC-003 walkthrough and mark spec as implemented` |
+
+---
+
+## 10. Correções pós-implementação (achadas em uso real, modo LIVE)
+
+O smoke test da T11 rodou em modo MOCK e passou, mas o primeiro uso real em modo LIVE (com `GEMINI_API_KEY` de verdade e personagens reais) expôs 3 bugs que o MOCK não conseguia revelar, porque nenhum deles depende de lógica de negócio — são todos sobre como a UI se comporta sob I/O real e lento. Os três foram corrigidos e verificados manualmente (dois via testes automatizados adicionais em `test_web_adapter.py`; ver commits):
+
+| # | Sintoma relatado pelo usuário | Causa raiz | Correção |
+| :-- | :--- | :--- | :--- |
+| 1 | "A tela trava, a barra de progresso não anda" | `GeminiLlmAdapter`, `GeminiImageGeneratorAdapter` e `GeminiVideoAnimatorAdapter` faziam chamadas de rede **síncronas e bloqueantes** (`urllib.request.urlopen`, SDK do `google-genai`, `time.sleep` de polling) dentro de métodos `async def`. Isso bloqueia o único event loop do `uvicorn` — **toda** requisição concorrente (incluindo `GET /api/mode`) fica pendurada pelo tempo da chamada, não só o job em andamento. | Todas as chamadas bloqueantes passaram a rodar via `asyncio.to_thread(...)`, liberando o event loop. Commit `a57d0e2`. |
+| 2 | "Adiciono imagens aos poucos, mas quando adiciono mais uma ele remove o que já tinha" | Comportamento nativo do `<input type="file" multiple>`: cada nova seleção do seletor de arquivos do SO **substitui** a `FileList` anterior, não soma. | `app.js` passou a manter arrays próprios (`pendingHeadshots`/`pendingFullbody`), mesclando cada nova seleção com a anterior (deduplicada, limitada a 5 por RF-01.4) e espelhando de volta no `<input>` via `DataTransfer`; chips removíveis individualmente. Commit `882405f`. |
+| 3 | Vários `GET /api/jobs/... 404` nos logs, tela sem feedback | `pollJobStatus()` ignorava silenciosamente qualquer resposta não-2xx do `GET /api/jobs/{id}` e continuava tentando a cada 2s para sempre — um `jobId` de antes de reiniciar o servidor (estado em memória perdido) gera 404 eterno sem nenhum aviso ao usuário. | Resposta não-ok agora encerra o polling e mostra uma mensagem específica ("geração não existe mais no servidor, gere novamente"); erro de rede transitório continua tentando. Commit `e2897fc`. |
+
+**Validação final real:** com os 3 fixes aplicados, uma geração completa em modo LIVE (2 personagens reais — "Cleber" e "Mileni" —, 24 cenas, template livre) rodou do início ao fim sem travar: o servidor continuou respondendo durante toda a chamada ao Gemini, a barra de progresso avançou cena a cena, e o Worker 2 (Remotion + ffmpeg) produziu um `.mp4` real de 110 MB em `output/web/runs/job_6732f558/video.mp4`, servido corretamente pelo player/download da UI. Detalhes em [WALKTHROUGH_SPEC_003.md](WALKTHROUGH_SPEC_003.md).
